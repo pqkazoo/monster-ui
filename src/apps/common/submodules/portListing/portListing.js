@@ -899,7 +899,8 @@ define(function(require) {
 					content: status.reason,
 					status: status.transition.new,
 					// show fix button if the last status is rejected, this is the cause of filter() & double each()
-					needFix: (statuses.length - 1 === idx) && status.transition.new === 'rejected'
+					// TODO: Enable when port wizard supports editing/viewing
+					// needFix: (statuses.length - 1 === idx) && status.transition.new === 'rejected'
 				});
 			});
 
