@@ -2,6 +2,7 @@
 require.config({
 	waitSeconds: 200,
 	paths: {
+        'alpaca': 'js/vendor/alpaca-1.5.24.min',
 		'async': 'js/vendor/async.min',
 		'bootstrap': 'js/vendor/bootstrap-2.3.1.min',
 		'card': 'js/vendor/card',
