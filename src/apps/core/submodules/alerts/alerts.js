@@ -19,8 +19,10 @@ define(function(require) {
 			var self = this,
 				initTemplate = function initTemplate(alerts) {
 					var alertsCount = alerts.length,
+						formattedAlerts = self.alertsFormatData({ data: alerts }),
 						dataTemplate = {
-							alertsCount: alertsCount === 0 ? null : alertsCount > 9 ? '9+' : alertsCount.toString()
+							alertsCount: alertsCount === 0 ? null : alertsCount > 9 ? '9+' : alertsCount.toString(),
+							alerts: formattedAlerts
 						},
 						$template = $(self.getTemplate({
 							name: 'nav',
@@ -70,8 +72,13 @@ define(function(require) {
 			var self = this,
 				$template = args.template;
 
-			$template.find('#main_topbar_alert_toggle_link').on('click', function() {
-				$(this).find('.badge').fadeOut({
+			$template.find('#main_topbar_alert_toggle_link').on('click', function(e) {
+				e.preventDefault();
+
+				var $this = $(this);
+
+				$this.parent().toggleClass('open');
+				$this.find('.badge').fadeOut({
 					duration: 250,
 					complete: function() {
 						$(this).remove();
@@ -90,14 +97,15 @@ define(function(require) {
 			var self = this;
 
 			return _.groupBy(args.data, function(alert) {
-				var alertType;
+				var alertType,
+					category = alert.category;
 
 				if (alert.clearable) {
 					alertType = 'manual';
-				} else if (_.includes([ 'low_balance', 'no_payment_token', 'expired_payment_token' ], alert.category)) {
+				} else if (_.includes([ 'low_balance', 'no_payment_token', 'expired_payment_token' ], category)) {
 					alertType = 'system';
 				} else {
-					alertType = 'apps';
+					alertType = alert.category.substring(0, category.indexOf('_'));
 				}
 
 				return alertType;

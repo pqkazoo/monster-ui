@@ -1018,7 +1018,12 @@
 
 	"alerts": {
 		"alertToggle": {
-			"toggleTooltip": "Notifications"
+			"toggleTooltip": "Notifications",
+			"alertTypes": {
+				"manual": "Manual",
+				"system": "System",
+				"port": "Porting"
+			}
 		}
 	}
 }
