@@ -94,22 +94,39 @@ define(function(require) {
 		 * @returns  {Object}              Grouped alerts by UI categories
 		 */
 		alertsFormatData: function(args) {
-			var self = this;
+			var self = this,
+				sortOrder = {
+					manual: '1',
+					system: '2'
+				};
 
-			return _.groupBy(args.data, function(alert) {
-				var alertType,
-					category = alert.category;
+			return _.chain(args.data)
+				.each(function(alert) {
+					if (_.has(alert, 'metadata') && _.isEmpty(alert.metadata)) {
+						delete alert.metadata;
+					}
+				})
+				.groupBy(function(alert) {
+					var alertType,
+						category = alert.category;
 
-				if (alert.clearable) {
-					alertType = 'manual';
-				} else if (_.includes([ 'low_balance', 'no_payment_token', 'expired_payment_token' ], category)) {
-					alertType = 'system';
-				} else {
-					alertType = alert.category.substring(0, category.indexOf('_'));
-				}
+					if (alert.clearable) {
+						alertType = 'manual';
+					} else if (_.includes([ 'low_balance', 'no_payment_token', 'expired_payment_token' ], category)) {
+						alertType = 'system';
+					} else {
+						alertType = alert.category.substring(0, category.indexOf('_'));
+					}
 
-				return alertType;
-			});
+					return alertType;
+				}).map(function(alerts, type) {
+					return {
+						type: type,
+						alerts: alerts
+					};
+				}).sortBy(function(alertGroup) {
+					return _.get(sortOrder, alertGroup.type, '3' + alertGroup.type);
+				}).value();
 		},
 
 		/**
