@@ -109,6 +109,22 @@ define(function(require) {
 					}
 				});
 			});
+
+			$template.find('#main_topbar_alert_toggle_container .alert-toggle-item .button-clear').on('click', function(e) {
+				e.preventDefault();
+
+				var $item = $(this).closest('.alert-toggle-item'),
+					hasSiblings = $item.siblings('.alert-toggle-item').length > 0,
+					$alertGroup = $item.parent(),
+					$elementToRemove = hasSiblings ? $item : $alertGroup;
+
+				$elementToRemove.slideUp({
+					duration: 200,
+					complete: function() {
+						$elementToRemove.remove();
+					}
+				});
+			});
 		},
 
 		/**
@@ -164,7 +180,7 @@ define(function(require) {
 						metadata: metadata,
 						message: alertData.message,
 						category: category,
-						clearable: alertData.clearable
+						clearable: Math.random() >= 0.5	//alertData.clearable
 					};
 				})
 				.groupBy(function(alert) {
