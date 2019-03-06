@@ -12,17 +12,38 @@ define(function(require) {
 			'core.alerts.refresh': 'alertsRender'
 		},
 
+		appFlags: {
+			alerts: {
+				metadataFormat: {
+					common: {
+						available: {
+							i18nKey: 'current_balance',
+							valueType: 'price'
+						}
+					},
+					categories: {
+						low_balance: {
+							available: {
+								i18nKey: 'current_balance',
+								valueType: 'price'
+							}
+						}
+					}
+				}
+			}
+		},
+
 		/**
 		 * Trigger the alerts pulling process from API.
 		 */
 		alertsRender: function() {
 			var self = this,
 				initTemplate = function initTemplate(alerts) {
-					var alertsCount = alerts.length,
+					var alertCount = alerts.length,
 						formattedAlerts = self.alertsFormatData({ data: alerts }),
 						dataTemplate = {
-							alertsCount: alertsCount === 0 ? null : alertsCount > 9 ? '9+' : alertsCount.toString(),
-							alerts: formattedAlerts
+							alertCount: alertCount === 0 ? null : alertCount > 9 ? '9+' : alertCount.toString(),
+							alertGroups: formattedAlerts
 						},
 						$template = $(self.getTemplate({
 							name: 'nav',
@@ -97,14 +118,50 @@ define(function(require) {
 			var self = this,
 				sortOrder = {
 					manual: '1',
-					system: '2'
-				};
+					system: '2',
+					apps: '3'
+				},
+				metadataFormat = self.appFlags.alerts.metadataFormat;
 
 			return _.chain(args.data)
-				.each(function(alert) {
-					if (_.has(alert, 'metadata') && _.isEmpty(alert.metadata)) {
-						delete alert.metadata;
-					}
+				.map(function(alert) {
+					var alertData = _.get(alert, 'value', alert),
+						category = alertData.category,
+						metadata = _.reduce(alertData.metadata,
+							function(metadataArray, value, key) {
+								var formatData = _.get(
+									metadataFormat.categories,
+									category + '.' + key,
+									_.get(metadataFormat.common, key)
+								);
+
+								if (formatData) {
+									var metadataItem = {
+										key: formatData.i18nKey,
+										value: value
+									};
+
+									switch (formatData.valueType) {
+										case 'price':
+											metadataItem.value = monster.util.formatPrice({
+												price: metadataItem.value
+											});
+											break;
+										default: break;
+									}
+
+									metadataArray.push(metadataItem);
+								}
+
+								return metadataArray;
+							}, []);
+
+					return {
+						title: alertData.title,
+						metadata: metadata,
+						message: alert.message,
+						category: category
+					};
 				})
 				.groupBy(function(alert) {
 					var alertType,
@@ -115,7 +172,7 @@ define(function(require) {
 					} else if (_.includes([ 'low_balance', 'no_payment_token', 'expired_payment_token' ], category)) {
 						alertType = 'system';
 					} else {
-						alertType = alert.category.substring(0, category.indexOf('_'));
+						alertType = category;
 					}
 
 					return alertType;
@@ -125,7 +182,7 @@ define(function(require) {
 						alerts: alerts
 					};
 				}).sortBy(function(alertGroup) {
-					return _.get(sortOrder, alertGroup.type, '3' + alertGroup.type);
+					return _.get(sortOrder, alertGroup.type) + alertGroup.type;
 				}).value();
 		},
 
