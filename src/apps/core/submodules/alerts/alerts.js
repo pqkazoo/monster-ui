@@ -42,8 +42,8 @@ define(function(require) {
 		alertsRender: function() {
 			var self = this,
 				initTemplate = function initTemplate(alerts) {
-					var alertCount = alerts.length,
-						formattedAlerts = self.alertsFormatData({ data: alerts }),
+					var formattedAlerts = self.alertsFormatData({ data: alerts }),
+						alertCount = formattedAlerts.length,
 						dataTemplate = {
 							alertCount: alertCount === 0 ? null : alertCount > 9 ? '9+' : alertCount.toString(),
 							alertGroups: formattedAlerts
@@ -56,8 +56,10 @@ define(function(require) {
 
 					monster.ui.tooltips($template);
 
-					// TODO: Bind events. For UI-3319, clicking the topbar icon should clear the badge that shows the notification count.
-					self.alertsBindEvents({ template: $template });
+					self.alertsBindEvents({
+						template: $template,
+						alerts: formattedAlerts
+					});
 
 					return $template;
 				};
@@ -89,12 +91,14 @@ define(function(require) {
 
 		/**
 		 * Bind template content events
-		 * @param  {Object} args
-		 * @param  {jQuery} args.template  Template to bind
+		 * @param  {Object}   args
+		 * @param  {jQuery}   args.template  Template to bind
+		 * @param  {Object[]} args.alerts    Alerts
 		 */
 		alertsBindEvents: function(args) {
 			var self = this,
-				$template = args.template;
+				$template = args.template,
+				alerts = args.alerts;
 
 			$template.find('#main_topbar_alert_toggle_link').on('click', function(e) {
 				e.preventDefault();
@@ -113,10 +117,13 @@ define(function(require) {
 			$template.find('#main_topbar_alert_toggle_container .alert-toggle-item .button-clear').on('click', function(e) {
 				e.preventDefault();
 
-				var $item = $(this).closest('.alert-toggle-item'),
-					hasSiblings = $item.siblings('.alert-toggle-item').length > 0,
-					$alertGroup = $item.parent(),
-					$elementToRemove = hasSiblings ? $item : $alertGroup;
+				var $alertItem = $(this).closest('.alert-toggle-item'),
+					alertId = $alertItem.data('alert_id'),
+					hasSiblings = $alertItem.siblings('.alert-toggle-item').length > 0,
+					$alertGroup = $alertItem.parent(),
+					$elementToRemove = hasSiblings ? $alertItem : $alertGroup;
+
+				_.remove(alerts, { id: alertId });
 
 				$elementToRemove.slideUp({
 					duration: 200,
@@ -176,6 +183,7 @@ define(function(require) {
 							}, []);
 
 					return {
+						id: alertData.id,
 						title: alertData.title,
 						metadata: metadata,
 						message: alertData.message,
