@@ -9,6 +9,7 @@ define(function(require) {
 
 		// Define the events available for other apps
 		subscribe: {
+			'core.alerts.hideDropdown': 'alertsHideDropdown',
 			'core.alerts.refresh': 'alertsRender'
 		},
 
@@ -32,7 +33,8 @@ define(function(require) {
 						}
 					}
 					*/
-				}
+				},
+				template: null
 			}
 		},
 
@@ -42,11 +44,13 @@ define(function(require) {
 		alertsRender: function() {
 			var self = this,
 				initTemplate = function initTemplate(alerts) {
-					var formattedAlerts = self.alertsFormatData({ data: alerts }),
-						alertCount = formattedAlerts.length,
+					var alertGroups = self.alertsFormatData({ data: alerts }),
+						alertCount = _.reduce(alertGroups, function(sum, alertGroup) {
+							return sum + alertGroup.alerts.length;
+						}, 0),
 						dataTemplate = {
 							alertCount: alertCount === 0 ? null : alertCount > 9 ? '9+' : alertCount.toString(),
-							alertGroups: formattedAlerts
+							alertGroups: alertGroups
 						},
 						$template = $(self.getTemplate({
 							name: 'nav',
@@ -54,18 +58,17 @@ define(function(require) {
 							submodule: 'alerts'
 						}));
 
+					self.appFlags.alerts.template = $template;
+
 					monster.ui.tooltips($template);
 
-					self.alertsBindEvents({
-						template: $template,
-						alerts: formattedAlerts
-					});
+					self.alertsBindEvents();
 
 					return $template;
 				};
 
-			monster.waterfall([
-				function(callback) {
+			monster.parallel({
+				alerts: function(callback) {
 					self.alertsRequestListAlerts({
 						success: function(data) {
 							callback(null, data);
@@ -74,11 +77,17 @@ define(function(require) {
 							callback(parsedError);
 						}
 					});
+				},
+				hideDropdown: function(callback) {
+					if (self.appFlags.alerts.template) {
+						self.alertsHideDropdown();
+					}
+					callback(null, true);
 				}
-			], function(err, alerts) {
+			}, function(err, data) {
 				var $navLinks = $('#main_topbar_nav'),
 					$topbarAlert = $navLinks.find('#main_topbar_alert'),
-					templateAlerts = err ? [] : alerts,
+					templateAlerts = err ? [] : _.get(data, 'alerts', []),
 					$template = initTemplate(templateAlerts);
 
 				if ($topbarAlert.length === 0) {
@@ -90,17 +99,27 @@ define(function(require) {
 		},
 
 		/**
-		 * Bind template content events
-		 * @param  {Object}   args
-		 * @param  {jQuery}   args.template  Template to bind
-		 * @param  {Object[]} args.alerts    Alerts
+		 * Hide notifications dropdown from the DOM
 		 */
-		alertsBindEvents: function(args) {
+		alertsHideDropdown: function() {
 			var self = this,
-				$template = args.template,
-				alerts = args.alerts;
+				$template = self.appFlags.alerts.template;
 
-			$template.find('#main_topbar_alert_toggle_link').on('click', function(e) {
+			if (!$template) {
+				throw new ReferenceError('The notifications template has not been loaded yet.');
+			}
+
+			$template.removeClass('open');
+		},
+
+		/**
+		 * Bind template content events
+		 */
+		alertsBindEvents: function() {
+			var self = this,
+				$template = self.appFlags.alerts.template;
+
+			self.appFlags.alerts.template.find('#main_topbar_alert_toggle_link').on('click', function(e) {
 				e.preventDefault();
 
 				var $this = $(this);
@@ -118,12 +137,9 @@ define(function(require) {
 				e.preventDefault();
 
 				var $alertItem = $(this).closest('.alert-toggle-item'),
-					alertId = $alertItem.data('alert_id'),
 					hasSiblings = $alertItem.siblings('.alert-toggle-item').length > 0,
 					$alertGroup = $alertItem.parent(),
 					$elementToRemove = hasSiblings ? $alertItem : $alertGroup;
-
-				_.remove(alerts, { id: alertId });
 
 				$elementToRemove.slideUp({
 					duration: 200,
@@ -135,7 +151,7 @@ define(function(require) {
 		},
 
 		/**
-		 * Formats the alert data received from the API, into UI categories
+		 * Formats the alert data received from the API, into UI category groups
 		 * @param    {Object}   args
 		 * @param    {Object[]} args.data  Array of alerts
 		 * @returns  {Object}              Grouped alerts by UI categories
